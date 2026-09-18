@@ -1,0 +1,4 @@
+let total = (12 + 3) * 2;
+let price = 3.50;
+// Mostrar un mensaje
+if total >= 20 print "total grande";

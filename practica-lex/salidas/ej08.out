@@ -1,0 +1,6 @@
+PRINT        print
+STRING       "hola mundo"
+SEMICOLON    ;
+PRINT        print
+STRING       ""
+SEMICOLON    ;

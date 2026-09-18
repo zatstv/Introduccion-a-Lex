@@ -1,0 +1,23 @@
+LET          let
+IDENTIFIER   total
+ASSIGN       =
+LPAREN       (
+NUMBER       12
+PLUS         +
+NUMBER       3
+RPAREN       )
+STAR         *
+NUMBER       2
+SEMICOLON    ;
+LET          let
+IDENTIFIER   price
+ASSIGN       =
+DECIMAL      3.50
+SEMICOLON    ;
+IF           if
+IDENTIFIER   total
+GREATER_EQUAL >=
+NUMBER       20
+PRINT        print
+STRING       "total grande"
+SEMICOLON    ;

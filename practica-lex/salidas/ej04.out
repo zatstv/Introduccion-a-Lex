@@ -1,0 +1,11 @@
+LET          let
+IDENTIFIER   result
+ASSIGN       =
+LPAREN       (
+NUMBER       10
+MINUS        -
+NUMBER       2
+RPAREN       )
+STAR         *
+NUMBER       3
+SEMICOLON    ;

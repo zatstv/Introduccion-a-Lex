@@ -1,0 +1,10 @@
+LET          let
+IDENTIFIER   x
+ASSIGN       =
+NUMBER       1
+SEMICOLON    ;
+LET          let
+IDENTIFIER   y
+ASSIGN       =
+NUMBER       2
+SEMICOLON    ;

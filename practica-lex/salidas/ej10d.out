@@ -1,0 +1,8 @@
+PRINT        print
+STRING       "esto // no es un comentario"
+SEMICOLON    ;
+LET          let
+IDENTIFIER   a
+ASSIGN       =
+NUMBER       1
+SEMICOLON    ;

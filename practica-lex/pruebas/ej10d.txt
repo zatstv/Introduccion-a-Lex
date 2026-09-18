@@ -1,0 +1,2 @@
+print "esto // no es un comentario";
+let a = 1; // esto si lo es

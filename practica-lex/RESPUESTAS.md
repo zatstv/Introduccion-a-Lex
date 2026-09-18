@@ -1,0 +1,153 @@
+# Práctica de Lex: respuestas
+
+Curso: IS-581 Compiladores e Intérpretes
+Herramienta: Flex 2.6.4 sobre Linux, compilado con `cc`
+
+---
+
+### 1. ¿Qué contiene `yytext` cada vez que se ejecuta la acción?
+
+`yytext` contiene el lexema que la regla acaba de reconocer, o sea la porción exacta del
+texto de entrada que hizo coincidencia con el patrón. Es un `char *` que apunta al buffer
+interno de Flex y viene terminado en `\0`, así que se puede imprimir con `%s`.
+
+Su contenido cambia en cada coincidencia. Con la entrada `7 42 105` la acción de `NUMBER`
+se ejecuta tres veces y `yytext` vale `7`, después `42` y después `105`. Los espacios nunca
+aparecen porque los consume la regla de espacios en blanco, que tiene su propia acción vacía.
+
+### 2. ¿Por qué el analizador divide `2total` en lugar de reportarlo como un identificador inválido?
+
+Porque el analizador léxico no tiene el concepto de "identificador inválido". Lo único que
+hace es pararse en una posición de la entrada y buscar la coincidencia más larga posible
+desde ahí.
+
+Cuando llega al `2`, el patrón de identificadores ni siquiera puede arrancar, porque exige
+una letra o un guion bajo en el primer carácter. El que sí arranca es `[0-9]+`, que reconoce
+`2` y se detiene en la `t`. El scanner avanza a la `t`, vuelve a probar, y ahora el patrón de
+identificadores sí aplica y se lleva `total`.
+
+Para decir que `2total` está mal habría que mirar que los dos tokens vienen pegados sin
+separador, y eso ya es información de contexto. Le corresponde al analizador sintáctico,
+no al léxico.
+
+### 3. ¿Por qué el orden importa para `print`, pero no hace que `printer` se divida en dos tokens?
+
+Son dos reglas distintas y se aplican en este orden:
+
+1. Gana el patrón que reconoce **más caracteres**.
+2. Solo si hay **empate en longitud**, gana el que aparece **primero** en el archivo.
+
+Con la entrada `print` hay empate: la regla `"print"` reconoce 5 caracteres y la de
+identificadores también reconoce 5. Como están empatadas, decide el orden del archivo. Por
+eso, al mover los identificadores arriba, `print` pasó a salir como IDENTIFIER y Flex avisó
+`warning, la regla no se puede aplicar` en las tres palabras reservadas: quedaron inalcanzables.
+
+Con `printer` no hay empate. La regla `"print"` reconoce 5 caracteres pero la de
+identificadores reconoce los 7. La coincidencia más larga se resuelve antes de que el orden
+entre en juego, así que `printer` sale como un solo IDENTIFIER pase lo que pase con el orden.
+
+### 4. ¿Reconocer los paréntesis significa que el analizador verifica que cada apertura tenga su cierre?
+
+No. Reconocerlos solo significa que cada vez que aparece el símbolo se emite un token
+`LPAREN` o `RPAREN`. El analizador léxico no guarda ningún estado entre tokens, no lleva
+un contador y no recuerda que vio un paréntesis abierto.
+
+Verificar el balance es emparejar estructuras anidadas, y eso una expresión regular no lo
+puede expresar: hace falta una gramática independiente del contexto y una pila. Ese trabajo
+es del analizador sintáctico. Se comprueba fácil: una entrada como `(((` produce tres LPAREN
+sin una sola queja.
+
+### 5. ¿Por qué `===` se convierte en dos tokens con estas reglas?
+
+Por la coincidencia más larga aplicada de forma repetida. Parado al inicio de `===`, los
+candidatos son `=` (1 carácter) y `==` (2 caracteres). No escribí ninguna regla para `===`,
+así que el más largo disponible es `==` y se emite EQUAL_EQUAL.
+
+El scanner avanza dos posiciones y queda un `=` suelto, que coincide con ASSIGN. Resultado:
+EQUAL_EQUAL seguido de ASSIGN. Si agregara una regla `"==="`, esa ganaría por reconocer tres
+caracteres y saldría un solo token.
+
+### 6. ¿Cuál es la diferencia entre `.` y `"."` en un patrón de Lex?
+
+El punto sin comillas es un metacarácter: reconoce **cualquier carácter menos el salto de
+línea**. Por eso funciona como regla final para atrapar todo lo que ninguna otra regla quiso.
+
+El punto entre comillas es un **carácter literal**, el punto de verdad. Las comillas le quitan
+el significado especial.
+
+En el patrón del decimal la diferencia es crítica. Escribí `[0-9]+"."[0-9]+`. Si hubiera
+escrito `[0-9]+.[0-9]+`, el punto aceptaría cualquier carácter y entradas como `12a34` o
+`12 34` se reconocerían como decimales, que es justo lo contrario de lo que quiero.
+
+### 7. ¿Por qué el patrón del comentario debe detenerse al llegar al salto de línea?
+
+Porque un comentario de línea termina, por definición, donde termina la línea. El patrón
+`"//"[^\n]*` consume todo menos el salto de línea, así que se frena ahí y deja el `\n` sin
+consumir en la entrada.
+
+Eso importa por dos razones. La primera es que el código de la línea siguiente se sigue
+analizando normalmente; si el patrón se comiera el salto de línea y siguiera, se tragaría el
+resto del archivo. La segunda es que el `\n` queda disponible para la regla que cuenta líneas
+del ejercicio 9, y así el número de línea de los errores sigue siendo correcto aunque haya
+comentarios de por medio.
+
+### 8. ¿Por qué el espacio dentro de `"hola mundo"` forma parte del token STRING?
+
+Porque las reglas no compiten carácter por carácter, compiten por la coincidencia más larga
+**desde la posición actual**.
+
+Cuando el scanner llega a la comilla de apertura, la regla de espacios en blanco ni siquiera
+puede arrancar ahí, porque una comilla no es un espacio. La que sí arranca es la de STRING,
+y su patrón `\"[^"\\\n]*\"` consume todo hasta la comilla de cierre, incluido el espacio de
+en medio, porque el espacio está dentro de lo que permite `[^"\\\n]`.
+
+Una vez que una regla se lleva esos caracteres, ninguna otra los vuelve a ver. El espacio
+nunca llega a quedar suelto para que la regla de espacios lo pueda descartar.
+
+### 9. ¿Por qué hay que sacar el salto de línea de la regla de espacios para que el contador funcione?
+
+Porque mientras `\n` siga dentro de `[ \t\r\n]+`, esa regla se traga los saltos de línea junto
+con los demás espacios y la acción que incrementa `current_line` nunca se ejecuta. El contador
+se quedaría en 1 y todos los errores se reportarían en la línea 1.
+
+Hay un problema adicional con el `+`: ese patrón puede consumir varios saltos de línea en una
+sola coincidencia, así que ni siquiera serviría poner `current_line++` dentro de esa misma
+regla, porque contaría una línea donde pasaron tres.
+
+Al separar `\n` en su propia regla, cada salto de línea produce exactamente una coincidencia
+y una ejecución de `current_line++`. El conteo queda exacto, y se ve en la prueba: reporta
+`@` en la línea 2 y `$` en la línea 4, saltándose la línea 3 que tenía código válido.
+
+### 10. ¿Qué ocurre desde que `yylex()` lee la entrada hasta que una acción llama a `show_token()`?
+
+`main()` llama a `yylex()` una sola vez y ese ciclo se repite hasta el fin del archivo:
+
+1. `yylex()` se para en la posición actual del buffer de entrada.
+2. Prueba **todos los patrones a la vez**, usando el autómata finito determinista que Flex
+   generó en `lex.yy.c` a partir de mis expresiones regulares.
+3. De todos los patrones que reconocen un prefijo del texto restante, se queda con el que
+   reconoce **más caracteres**.
+4. Si hay empate en longitud, gana el que escribí **primero** en `scanner.l`.
+5. Con la regla ya elegida, Flex apunta `yytext` al lexema, fija `yyleng` con su longitud y
+   ejecuta el bloque de C de esa regla.
+6. En mi scanner ese bloque llama a `show_token("TIPO", yytext)`, que imprime el tipo de token
+   y el lexema. En las reglas de espacios y comentarios el bloque está vacío, así que no se
+   emite nada.
+7. Como la acción no hace `return`, `yylex()` mueve el puntero justo después del lexema
+   consumido y vuelve al paso 1.
+
+**Qué depende de mis patrones:** qué secuencias de caracteres son reconocibles del todo, cuál
+es la más larga en cada punto y, por lo tanto, **dónde quedan los cortes entre un token y el
+siguiente**. Eso es lo que hace que `2total` se parta en dos, que `printer` no se parta, y que
+`3.50` salga como un solo DECIMAL. El orden en que escribo las reglas solo decide los empates,
+como el de `print` contra IDENTIFIER.
+
+**Qué no depende de mis patrones:** el mecanismo. La estrategia de coincidencia más larga, el
+desempate por orden, el avance del puntero y el ciclo mismo los impone Flex y son iguales para
+cualquier scanner.
+
+---
+
+Nota final: este analizador solo reconoce tokens. No evalúa expresiones ni revisa la estructura
+gramatical del programa. Por eso acepta sin protestar algo como `let let = ) ) ;`, que es una
+secuencia de tokens perfectamente válida y un programa sin ningún sentido.
