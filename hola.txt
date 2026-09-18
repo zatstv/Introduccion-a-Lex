@@ -1,0 +1,218 @@
+
+PRÁCTICA DE LEX - 10 EJERCICIOS
+Informe de lo realizado
+
+
+Curso      : IS-581 Compiladores e Intérpretes
+Profesor   : Wilian A. Martínez
+Estudiante : Hugo
+Fecha      : 17 de septiembre de 2026
+Carpeta    : ~/Documentos/compiladores/practica-lex/
+
+
+EJERCICIO 1 - Reconocer texto y mostrar su token
+
+
+Se cambió la acción de la regla NUMBER para que en vez de llamar a show_token
+imprimiera directo con printf. Hubo que agregar #include <stdio.h> entre %{ y %}
+para poder usar printf.
+
+Con la entrada "7 42 105" salió exactamente:
+
+    Numero encontrado: 7
+    Numero encontrado: 42
+    Numero encontrado: 105
+
+Lo que se ve aquí es que yytext trae el pedazo de texto que la regla acaba de
+reconocer, y que cambia en cada coincidencia. Los espacios no aparecen porque se
+los lleva otra regla.
+
+Después se restauró show_token("NUMBER", yytext) para que el resto de los
+ejercicios mantuvieran el mismo formato de salida.
+
+
+EJERCICIO 2 - Reconocer identificadores
+
+
+Aquí no se cambió nada, solo se observó el patrón que ya estaba:
+
+    [a-zA-Z_][a-zA-Z0-9_]*
+
+Antes de correr el programa se hizo la predicción: name, total2, _count y x salen
+como IDENTIFIER, y 2total se debería partir porque no cumple el patrón desde el
+primer carácter.
+
+La predicción salió bien. 2total se partió en NUMBER 2 más IDENTIFIER total.
+
+Esto es lo primero importante de la práctica: el analizador léxico no sabe lo que
+es un "identificador inválido". Solo se para en una posición y agarra la
+coincidencia más larga que pueda. Decir que 2total está mal es trabajo del
+analizador sintáctico.
+
+
+EJERCICIO 3 - Palabras reservadas y orden de las reglas
+
+
+Se agregaron reglas para print e if, arriba de la regla de identificadores.
+
+Con la entrada "print printer if if2 let letter" salió lo esperado:
+PRINT, IDENTIFIER, IF, IDENTIFIER, LET, IDENTIFIER.
+
+Después venía el experimento interesante: mover la regla de identificadores arriba
+de las palabras reservadas. Al hacerlo, Flex tiró tres advertencias:
+
+    scanner.l:11: warning, la regla no se puede aplicar
+    scanner.l:12: warning, la regla no se puede aplicar
+    scanner.l:13: warning, la regla no se puede aplicar
+
+Y la salida cambió: las seis palabras salieron como IDENTIFIER. Las tres reglas de
+palabras reservadas quedaron muertas, nunca se podían alcanzar.
+
+Aquí quedaron claras las dos reglas que usa Lex para decidir:
+
+    1. Gana el patrón que reconoce MÁS caracteres.
+    2. Solo si hay empate en longitud, gana el que aparece PRIMERO en el archivo.
+
+Con "print" hay empate (ambos patrones reconocen 5 caracteres), por eso el orden
+decide. Con "printer" no hay empate: la palabra reservada reconoce 5 y el
+identificador reconoce 7, así que gana por largo y nunca se parte, sin importar el
+orden.
+
+Después del experimento se restauró el orden correcto.
+
+
+EJERCICIO 4 - Operadores y signos de puntuación
+
+
+Se agregaron cuatro reglas para símbolos literales: menos, asterisco y los dos
+paréntesis. Los símbolos van entre comillas en el patrón, y las reglas se
+colocaron antes de la regla final que atrapa lo desconocido.
+
+Con "let result = (10 - 2) * 3;" salieron los once tokens, paréntesis incluidos,
+sin ninguna entrada ERROR.
+
+Detalle que pregunta el ejercicio: reconocer paréntesis NO significa que el
+analizador revise que cada uno que abre tenga su cierre. El léxico no guarda
+estado. Una entrada como "(((" pasa sin una sola queja.
+
+
+EJERCICIO 5 - Coincidencia más larga
+
+
+Se agregaron == , > y >= , conservando el = que ya estaba.
+
+Con la entrada "= == > >= ===" salió:
+ASSIGN, EQUAL_EQUAL, GREATER, GREATER_EQUAL, EQUAL_EQUAL, ASSIGN.
+
+El caso de "===" es el que enseña el concepto. Parado al inicio, el candidato más
+largo disponible es == porque no hay ninguna regla escrita para ===. Se emite
+EQUAL_EQUAL, el scanner avanza dos posiciones, y el = que queda solo cae en
+ASSIGN. Dos tokens.
+
+
+EJERCICIO 6 - Números decimales
+
+
+Se agregó la regla del decimal combinando pedazos:
+
+    [0-9]+"."[0-9]+
+
+Con "7 3.14 0.5 25.00" salió NUMBER, DECIMAL, DECIMAL, DECIMAL.
+
+Después se probaron los casos borde ".5" y "5." y, como anticipaba el enunciado,
+ninguno cumple el formato: cada uno produce un ERROR por el punto y un NUMBER por
+el dígito, en el orden en que aparecen.
+
+El punto clave del ejercicio es la diferencia entre el punto pelado y el punto
+entre comillas. Sin comillas el punto es un comodín que reconoce cualquier
+carácter; entre comillas es el punto de verdad. Si se hubiera escrito
+[0-9]+.[0-9]+ entonces algo como "12a34" también pasaría por decimal.
+
+
+EJERCICIO 7 - Ignorar espacios y comentarios
+
+
+Se agregó la regla del comentario de línea:
+
+    "//"[^\n]*    con una acción vacía
+
+Con las dos instrucciones de prueba salieron diez tokens y ni los espacios, ni la
+línea en blanco, ni los dos comentarios generaron nada.
+
+El patrón tiene que frenar en el salto de línea por dos razones: porque el
+comentario termina donde termina la línea, y porque ese salto de línea tiene que
+quedar libre para que la regla de espacios (y después el contador del ejercicio 9)
+lo pueda ver.
+
+
+EJERCICIO 8 - Cadenas de texto
+
+
+Se agregó la regla de STRING:
+
+    \"[^"\\\n]*\"
+
+O sea: una comilla, cero o más caracteres que no sean comilla, barra invertida ni
+salto de línea, y otra comilla. No se implementaron secuencias de escape, tal como
+aclaraba el enunciado.
+
+Con las dos líneas de prueba salió PRINT, STRING, SEMICOLON dos veces. El lexema
+se imprime completo con sus comillas y la cadena vacía "" pasa sin problema.
+
+La pregunta de por qué el espacio de "hola mundo" no se lo lleva la regla de
+espacios tiene una respuesta sencilla: cuando el scanner llega a la comilla de
+apertura, la regla de espacios ni siquiera puede arrancar ahí. La de STRING sí
+arranca y se lleva todo hasta la comilla de cierre. Una vez que una regla se lleva
+unos caracteres, ninguna otra los vuelve a ver.
+
+
+EJERCICIO 9 - Errores con número de línea
+
+Este fue el que más cambios pidió. Se declaró:
+
+    int current_line = 1;
+
+Y se partió la regla de espacios en dos:
+
+    [ \t\r]+    ignora espacios, tabs y retornos de carro
+    \n          incrementa current_line
+
+Además se cambió la acción de la regla final para que imprima la línea y el
+carácter raro, sin dejar de incrementar lexical_errors.
+
+Con la entrada de prueba el resultado fue:
+
+    Linea 2: caracter inesperado @
+    Linea 4: caracter inesperado $
+
+Y el programa sigue analizando después de cada error, que es la gracia. El código
+de salida quedó en 1, así que make run reporta:
+
+    make: *** [Makefile:12: run] Error 1
+
+Eso es lo esperado para esa entrada, no es un fallo.
+
+La razón de sacar el \n de la regla de espacios es doble. Primero, si se queda
+adentro, esa regla se traga los saltos de línea y el contador nunca corre.
+Segundo, el + puede comerse varios saltos de una sola vez, así que ni siquiera
+serviría poner el contador dentro de esa misma regla: contaría una línea donde
+pasaron tres.
+
+
+EJERCICIO 10 - Todo junto
+
+
+Aquí se corrió el analizador completo, con las veintiuna reglas, sobre las cuatro
+líneas de prueba del enunciado.
+
+Predicción antes de correr:
+
+    Línea 1  LET IDENTIFIER ASSIGN LPAREN NUMBER PLUS NUMBER RPAREN STAR
+             NUMBER SEMICOLON                                      (11 tokens)
+    Línea 2  LET IDENTIFIER ASSIGN DECIMAL SEMICOLON                (5 tokens)
+    Línea 3  ningún token (es un comentario)                        (0 tokens)
+    Línea 4  IF IDENTIFIER GREATER_EQUAL NUMBER PRINT STRING
+             SEMICOLON                                              (7 tokens)
+
+Resultado real: 23 tokens, cero errores, código de salida 0. Coincide línea por
+línea con la predicción y con la tabla del enunciado.
