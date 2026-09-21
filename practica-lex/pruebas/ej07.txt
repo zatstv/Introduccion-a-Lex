@@ -1,3 +1,0 @@
-let x = 1; // Primer valor
-
-    let y = 2; // Segundo valor

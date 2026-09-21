@@ -1,15 +1,3 @@
-
-PRÁCTICA DE LEX - 10 EJERCICIOS
-Informe de lo realizado
-
-
-Curso      : IS-581 Compiladores e Intérpretes
-Profesor   : Wilian A. Martínez
-Estudiante : Hugo
-Fecha      : 17 de septiembre de 2026
-Carpeta    : ~/Documentos/compiladores/practica-lex/
-
-
 EJERCICIO 1 - Reconocer texto y mostrar su token
 
 

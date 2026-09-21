@@ -1,3 +1,0 @@
-scanner.l:11: warning, la regla no se puede aplicar
-scanner.l:12: warning, la regla no se puede aplicar
-scanner.l:13: warning, la regla no se puede aplicar

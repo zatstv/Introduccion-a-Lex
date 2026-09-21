@@ -1,6 +1,0 @@
-PRINT        print
-IDENTIFIER   printer
-IF           if
-IDENTIFIER   if2
-LET          let
-IDENTIFIER   letter
